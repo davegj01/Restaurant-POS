@@ -1,14 +1,14 @@
-
 "use client"
 
 import { useState, useEffect } from "react"
 import { useParams, useNavigate } from "react-router-dom"
-import { ArrowLeft, Plus, Minus, X, Check, ChevronRight, Edit2 } from "lucide-react"
+import { ArrowLeft, Plus, Minus, X, Check, ChevronRight, Edit2, DollarSign } from "lucide-react"
 import Header from "../common/Header"
 import { useApp } from "../context/AppContext"
 import MenuSelectionModal from "../orders/MenuSelectionModal"
 import ItemCustomizationModal from "../orders/ItemCustomizationModal"
-
+import PaymentModal from "../payment/PaymentModal"
+import PaymentSuccessModal from "../payment/PaymentSuccessModal"
 
 const OrderDetailPage = ({ onLogout }) => {
   const { orderId } = useParams()
@@ -19,6 +19,9 @@ const OrderDetailPage = ({ onLogout }) => {
   const [loading, setLoading] = useState(true)
   const [showMenuModal, setShowMenuModal] = useState(false)
   const [showCustomizeModal, setShowCustomizeModal] = useState(false)
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [showPaymentSuccess, setShowPaymentSuccess] = useState(false)
+  const [paymentDetails, setPaymentDetails] = useState(null)
   const [selectedItem, setSelectedItem] = useState(null)
   const [selectedItemIndex, setSelectedItemIndex] = useState(null)
 
@@ -50,8 +53,24 @@ const OrderDetailPage = ({ onLogout }) => {
   }
 
   const handleProceedOrder = () => {
-    // Actualizar el estado de la orden a "ready"
-    updateOrderStatus(orderId, "ready", "Ready to serve", "Order completed")
+    // Si la orden está lista, mostrar el modal de pago
+    if (order.status === "ready" || order.items.length > 0) {
+      setShowPaymentModal(true)
+    } else {
+      // Si no está lista, actualizar el estado a "ready"
+      updateOrderStatus(orderId, "ready", "Ready to serve", "Order completed")
+      navigate("/orders")
+    }
+  }
+
+  const handlePaymentComplete = (details) => {
+    setPaymentDetails(details)
+    setShowPaymentModal(false)
+    setShowPaymentSuccess(true)
+  }
+
+  const handlePaymentSuccessDone = () => {
+    setShowPaymentSuccess(false)
     navigate("/orders")
   }
 
@@ -159,7 +178,7 @@ const OrderDetailPage = ({ onLogout }) => {
                                 {item.addedAddons
                                   .map((id) => {
                                     const addon = item.menuItem.addons.find((a) => a.id === id)
-                                    return addon ? `${addon.name} (+${addon.price.toFixed(2)})` : ""
+                                    return addon ? `${addon.name} (+$${addon.price.toFixed(2)})` : ""
                                   })
                                   .join(", ")}
                               </p>
@@ -283,8 +302,17 @@ const OrderDetailPage = ({ onLogout }) => {
             className="w-full bg-amber-500 hover:bg-amber-600 text-black font-medium py-3 px-4 rounded transition-colors flex items-center justify-center"
             onClick={handleProceedOrder}
           >
-            <Check className="h-5 w-5 mr-2" />
-            Proceed Order
+            {order.status === "ready" || order.items.length > 0 ? (
+              <>
+                <DollarSign className="h-5 w-5 mr-2" />
+                Pay Now
+              </>
+            ) : (
+              <>
+                <Check className="h-5 w-5 mr-2" />
+                Proceed Order
+              </>
+            )}
           </button>
         </div>
       </div>
@@ -313,6 +341,20 @@ const OrderDetailPage = ({ onLogout }) => {
             setOrder(getOrderById(orderId))
           }}
         />
+      )}
+
+      {/* Modal de pago */}
+      {showPaymentModal && (
+        <PaymentModal
+          order={order}
+          onClose={() => setShowPaymentModal(false)}
+          onPaymentComplete={handlePaymentComplete}
+        />
+      )}
+
+      {/* Modal de pago exitoso */}
+      {showPaymentSuccess && paymentDetails && (
+        <PaymentSuccessModal paymentDetails={paymentDetails} onClose={handlePaymentSuccessDone} />
       )}
     </div>
   )
